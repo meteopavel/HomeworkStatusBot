@@ -108,7 +108,7 @@ def main():
         raise logging.critical('Сбой глобальных переменных')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    old_error = ''
+    # old_error = ''
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -119,9 +119,16 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
+            """
+            Пытался реализовать пункт о неотправке
+            сообщения об одной и той же ошибке.
+            Но мой вариант не проходит тест. Нужна подсказка
+            """
+            """
             if str(old_error) != str(error):
                 old_error = error
                 send_message(bot, message)
+            """
         time.sleep(RETRY_PERIOD)
 
 
