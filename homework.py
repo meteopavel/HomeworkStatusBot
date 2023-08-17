@@ -108,7 +108,7 @@ def main():
         raise logging.critical('Сбой глобальных переменных')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    old_error = 'piska'
+    old_error = ''
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -122,7 +122,7 @@ def main():
             if str(old_error) != str(error):
                 old_error = error
                 send_message(bot, message)
-        time.sleep(5)
+        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
