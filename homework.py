@@ -19,7 +19,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+ENDPOINT = 'https://practicum.yandexx.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 HOMEWORK_VERDICTS = {
@@ -49,7 +49,7 @@ def check_tokens() -> bool:
     logger.debug('Начало проверки наличия необходимых токенов')
     required_tokens = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
     missing_tokens = [
-        token for token in required_tokens if globals()[token] is None
+        token for token in required_tokens if not globals()[token]
     ]
     if missing_tokens:
         logger.critical(f'Следующие токены отсутствуют:\n- {missing_tokens}')
@@ -75,12 +75,11 @@ def get_api_answer(timestamp) -> str:
             params=params
         )
         logger.debug('Успешное получение ответа от сервера')
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as error:
         raise ConnectionError(
             f'Эндпоинт {ENDPOINT} с параметрами запроса {params} недоступен'
-        )
+        ) from error
     if response.status_code != HTTPStatus.OK:
-        logger.error
         raise ConnectionError(
             f'Статус эндпоинта отличен от 200 и равен {response.status_code}'
         )
@@ -113,8 +112,12 @@ def parse_status(homework) -> str:
         )
     homework_name = homework['homework_name']
     homework_status = homework.get('status')
-    if homework_status in HOMEWORK_VERDICTS:
-        verdict = HOMEWORK_VERDICTS[homework_status]
+    if homework_status not in HOMEWORK_VERDICTS:
+        raise KeyError(
+            f'API вернул неожиданный статус работы: {homework_status}. '
+            f'Ожидался один из следующих вариантов: {HOMEWORK_VERDICTS.keys()}'
+        )
+    verdict = HOMEWORK_VERDICTS[homework_status]
     logger.debug('Парсинг статуса работы завершён успешно')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -128,12 +131,12 @@ def main():
     while True:
         try:
             response = get_api_answer(timestamp)
+            homeworks = response['homeworks']
             check_response(response)
-            if not response['homeworks']:
-                message = 'В работах отсутствует изменение статуса'
-                logger.debug(message)
-            else:
-                message = parse_status(response['homeworks'][0])
+            if not homeworks:
+                logger.debug('В работах отсутствует изменение статуса')
+                continue
+            message = parse_status(homeworks[0])
             if sent_message != message:
                 send_message(bot, message)
                 sent_message = message
@@ -142,7 +145,7 @@ def main():
             logger.error('Ошибка доступности Telegram')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logger.error(message)
+            logger.error(message, exc_info=True)
             if sent_message != message:
                 with suppress(Exception):
                     send_message(bot, message)
