@@ -140,6 +140,8 @@ def main():
             if sent_message != message:
                 send_message(bot, message)
                 sent_message = message
+            else:
+                logger.debug('Сформировано повторяющееся сообщение')
             timestamp = response.get('current_date', timestamp)
         except telegram.error.TelegramError:
             logger.error('Ошибка доступности Telegram')
